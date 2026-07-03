@@ -11,6 +11,7 @@ export const UsersManagement = () => {
   const [page, setPage] = useState(1);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
+  const [resetUser, setResetUser] = useState<Usuario | null>(null);
 
   useEffect(() => {
     listar(page, 20);
@@ -118,6 +119,13 @@ export const UsersManagement = () => {
                   </button>
                   <button
                     type="button"
+                    className="boton boton--ghost boton--sm"
+                    onClick={() => setResetUser(user)}
+                  >
+                    Resetear clave
+                  </button>
+                  <button
+                    type="button"
                     className="boton boton--peligro boton--sm"
                     onClick={() => handleDelete(user.id)}
                   >
@@ -137,6 +145,12 @@ export const UsersManagement = () => {
       )}
 
       {showForm && <UserForm user={editingUser} onClose={handleFormClose} />}
+      {resetUser && (
+        <ResetPasswordForm
+          user={resetUser}
+          onClose={() => setResetUser(null)}
+        />
+      )}
     </section>
   );
 };
@@ -241,6 +255,141 @@ const UserForm = ({ user, onClose }: UserFormProps) => {
             </button>
             <button type="submit" className="boton" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Modal para que un admin resetee la contraseña de otro usuario
+const MIN_LEN = 8;
+
+interface ResetPasswordFormProps {
+  user: Usuario;
+  onClose: () => void;
+}
+
+const ResetPasswordForm = ({ user, onClose }: ResetPasswordFormProps) => {
+  const { resetearPassword } = useUsers();
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [verClave, setVerClave] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const largoOk = newPassword.length >= MIN_LEN;
+  const coinciden = confirmPassword.length > 0 && newPassword === confirmPassword;
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!largoOk) {
+      setError(`La contraseña debe tener al menos ${MIN_LEN} caracteres`);
+      return;
+    }
+    if (!coinciden) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await resetearPassword(user.id, newPassword);
+      if (result.success) {
+        setSuccess(true);
+        setTimeout(onClose, 1500);
+      } else {
+        setError(result.error || 'Error al resetear contraseña');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="modal-fondo" onClick={onClose}>
+      <div className="modal modal--form" onClick={(e) => e.stopPropagation()}>
+        <h3 className="modal__titulo">Resetear contraseña</h3>
+        <p className="seccion-sub" style={{ marginBottom: '1.1rem' }}>
+          Nueva contraseña para <strong>{user.nombre}</strong> (@{user.usuario}).
+        </p>
+
+        {success && <p className="aviso">Contraseña actualizada.</p>}
+        {error && <p className="aviso aviso--error">{error}</p>}
+
+        <form onSubmit={handleSubmit}>
+          <label className="campo">
+            <span>Nueva contraseña</span>
+            <div className="input-clave">
+              <input
+                type={verClave ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={MIN_LEN}
+                autoComplete="new-password"
+              />
+              <button
+                type="button"
+                className="input-clave__toggle"
+                onClick={() => setVerClave((v) => !v)}
+              >
+                {verClave ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+            <p
+              className={
+                'clave-pista' +
+                (newPassword.length === 0
+                  ? ''
+                  : largoOk
+                  ? ' clave-pista--ok'
+                  : ' clave-pista--error')
+              }
+            >
+              Mínimo {MIN_LEN} caracteres
+            </p>
+          </label>
+
+          <label className="campo">
+            <span>Confirmar contraseña</span>
+            <input
+              type={verClave ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+            />
+            {confirmPassword.length > 0 && (
+              <p
+                className={
+                  'clave-pista' +
+                  (coinciden ? ' clave-pista--ok' : ' clave-pista--error')
+                }
+              >
+                {coinciden
+                  ? 'Las contraseñas coinciden'
+                  : 'Las contraseñas no coinciden'}
+              </p>
+            )}
+          </label>
+
+          <div className="modal__acciones">
+            <button
+              type="button"
+              className="boton boton--secundario"
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="boton" disabled={loading}>
+              {loading ? 'Reseteando…' : 'Resetear'}
             </button>
           </div>
         </form>
