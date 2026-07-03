@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AdminPanel from "@/components/AdminPanel";
+import AppShell from "@/components/AppShell";
 import LoginView from "@/components/LoginView";
 import { clearToken, fetchPerfil, getToken } from "@/lib/api";
 import type { Usuario } from "@/lib/types";
@@ -38,7 +38,7 @@ export default function Page() {
   return (
     <div className={"shell " + (usuario ? "shell--panel" : "shell--login")}>
       {!listo ? null : usuario ? (
-        <AdminPanel usuario={usuario} onLogout={cerrarSesion} />
+        <AppShell usuario={usuario} onLogout={cerrarSesion} />
       ) : (
         <LoginView onSuccess={setUsuario} />
       )}
