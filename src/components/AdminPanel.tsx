@@ -106,11 +106,21 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
   // uuid en edición; "" indica un post nuevo (aún no creado).
   const [uuidEditando, setUuidEditando] = useState<string | null>(null);
 
-  // Sincroniza el estado con la URL (?editar=<uuid> o ?nuevo=1) para que el post
-  // en edición se refleje en la barra de direcciones y funcionen atrás/adelante.
+  // Sincroniza el estado con la URL para que la sección del sidebar (?view=)
+  // y el post en edición (?editar=<uuid> o ?nuevo=1) se reflejen en la barra de
+  // direcciones y funcionen los botones atrás/adelante del navegador.
   useEffect(() => {
     function aplicarDesdeURL() {
       const params = new URLSearchParams(window.location.search);
+      const view = params.get("view");
+      if (view === "usuarios" || view === "settings") {
+        setPrincipalView(view);
+        setUuidEditando(null);
+        setVista("lista");
+        return;
+      }
+      // Sección de noticias (por defecto).
+      setPrincipalView("noticias");
       const uuid = params.get("editar");
       if (uuid) {
         setUuidEditando(uuid);
@@ -131,6 +141,13 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
   function navegar(search: string) {
     const url = window.location.pathname + (search ? "?" + search : "");
     window.history.pushState(null, "", url);
+  }
+
+  function cambiarSeccion(view: PrincipalView) {
+    setPrincipalView(view);
+    setUuidEditando(null);
+    setVista("lista");
+    navegar(view === "noticias" ? "" : "view=" + view);
   }
 
   function nuevo() {
@@ -179,7 +196,7 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
             <button 
               type="button" 
               className={"nav-item" + (principalView === "noticias" ? " nav-item--activo" : "")}
-              onClick={() => setPrincipalView("noticias")}
+              onClick={() => cambiarSeccion("noticias")}
             >
               <IconoNoticias />
               Noticias
@@ -188,7 +205,7 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
               <button 
                 type="button" 
                 className={"nav-item" + (principalView === "usuarios" ? " nav-item--activo" : "")}
-                onClick={() => setPrincipalView("usuarios")}
+                onClick={() => cambiarSeccion("usuarios")}
               >
                 <IconoUsuarios />
                 Gestión de Usuarios
@@ -197,7 +214,7 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
             <button 
               type="button" 
               className={"nav-item" + (principalView === "settings" ? " nav-item--activo" : "")}
-              onClick={() => setPrincipalView("settings")}
+              onClick={() => cambiarSeccion("settings")}
             >
               <IconoSeguridad />
               Cambiar Contraseña
