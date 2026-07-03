@@ -1,0 +1,37 @@
+{
+  "name": "hal-noticias-ui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@tiptap/extension-image": "^3.0.0",
+    "@tiptap/extension-link": "^3.0.0",
+    "@tiptap/react": "^3.0.0",
+    "@tiptap/starter-kit": "^3.0.0",
+    "axios": "^1.7.9",
+    "dompurify": "^3.4.11",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitest/coverage-istanbul": "^2.1.9",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "jsdom": "^29.1.1",
+    "typescript": "^5",
+    "vitest": "^2.1.9"
+  }
+}
