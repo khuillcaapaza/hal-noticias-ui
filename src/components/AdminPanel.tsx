@@ -19,6 +19,8 @@ import ListBarrier from "@/components/ListBarrier";
 import PostGrid from "@/components/PostGrid";
 import PaginationControls from "@/components/PaginationControls";
 import Toggle from "@/components/Toggle";
+import { UsersManagement } from "@/components/UsersManagement";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import {
   actualizarPost,
   crearPost,
@@ -39,6 +41,8 @@ interface Props {
   usuario: Usuario;
   onLogout: () => void;
 }
+
+type PrincipalView = "noticias" | "usuarios" | "settings";
 
 const CATEGORIAS = [
   "Institucional",
@@ -68,6 +72,25 @@ function IconoNoticias() {
   );
 }
 
+function IconoUsuarios() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function IconoSeguridad() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    </svg>
+  );
+}
+
 function IconoBuscar() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -78,6 +101,7 @@ function IconoBuscar() {
 }
 
 export default function AdminPanel({ usuario, onLogout }: Props) {
+  const [principalView, setPrincipalView] = useState<PrincipalView>("noticias");
   const [vista, setVista] = useState<"lista" | "editor">("lista");
   // uuid en edición; "" indica un post nuevo (aún no creado).
   const [uuidEditando, setUuidEditando] = useState<string | null>(null);
@@ -152,22 +176,50 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
       <div className="layout">
         <aside className="sidebar">
           <nav>
-            <button type="button" className="nav-item nav-item--activo">
+            <button 
+              type="button" 
+              className={"nav-item" + (principalView === "noticias" ? " nav-item--activo" : "")}
+              onClick={() => setPrincipalView("noticias")}
+            >
               <IconoNoticias />
               Noticias
+            </button>
+            {usuario.rol === "admin" && (
+              <button 
+                type="button" 
+                className={"nav-item" + (principalView === "usuarios" ? " nav-item--activo" : "")}
+                onClick={() => setPrincipalView("usuarios")}
+              >
+                <IconoUsuarios />
+                Gestión de Usuarios
+              </button>
+            )}
+            <button 
+              type="button" 
+              className={"nav-item" + (principalView === "settings" ? " nav-item--activo" : "")}
+              onClick={() => setPrincipalView("settings")}
+            >
+              <IconoSeguridad />
+              Cambiar Contraseña
             </button>
           </nav>
         </aside>
 
         <main className="contenido">
-          {vista === "lista" ? (
-            <ListaPosts onNuevo={nuevo} onEditar={editar} />
+          {principalView === "noticias" ? (
+            vista === "lista" ? (
+              <ListaPosts onNuevo={nuevo} onEditar={editar} />
+            ) : (
+              <EditorPost
+                uuid={uuidEditando ?? ""}
+                onVolver={volverALista}
+                onCreado={editar}
+              />
+            )
+          ) : principalView === "usuarios" ? (
+            <UsersManagement />
           ) : (
-            <EditorPost
-              uuid={uuidEditando ?? ""}
-              onVolver={volverALista}
-              onCreado={editar}
-            />
+            <ChangePasswordForm />
           )}
         </main>
       </div>
