@@ -1,3 +1,10 @@
+// Middleware desactivado: conflicta con "output: export" en next.config.ts
+// En producción, usar en su lugar:
+// 1. Server-side redirects en next.config.ts
+// 2. API Routes para validación de auth
+// 3. Client-side protection en componentes con useAuth hook
+
+/*
 import { NextRequest, NextResponse } from 'next/server';
 
 export function middleware(request: NextRequest) {
@@ -29,3 +36,4 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/dashboard/:path*', '/admin/:path*'],
 };
+*/
