@@ -1,10 +1,101 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { Extension, Node, mergeAttributes } from "@tiptap/core";
+import { Plugin, PluginKey, type EditorState } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
+
+/** Clave del plugin que gestiona el placeholder de "subiendo imagen". */
+const subidaKey = new PluginKey("subidaImagen");
+
+/**
+ * Extensión que dibuja un indicador temporal ("Subiendo imagen…") en el punto
+ * EXACTO donde se insertará la imagen mientras se sube. Es una DECORACIÓN de
+ * ProseMirror: no forma parte del documento, por lo que nunca se guarda en el
+ * HTML del post (evita persistir URLs `blob:` temporales).
+ */
+const SubidaImagen = Extension.create({
+  name: "subidaImagen",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: subidaKey,
+        state: {
+          init() {
+            return DecorationSet.empty;
+          },
+          apply(tr, set) {
+            set = set.map(tr.mapping, tr.doc);
+            const accion = tr.getMeta(subidaKey) as
+              | { add?: { id: object; pos: number; texto?: string }; remove?: { id: object } }
+              | undefined;
+            if (accion?.add) {
+              const cont = document.createElement("span");
+              cont.className = "rte-subiendo";
+              cont.setAttribute("contenteditable", "false");
+              const spin = document.createElement("span");
+              spin.className = "rte-subiendo__spin";
+              const txt = document.createElement("span");
+              txt.className = "rte-subiendo__txt";
+              txt.textContent = accion.add.texto ?? "Subiendo imagen…";
+              cont.append(spin, txt);
+              const deco = Decoration.widget(accion.add.pos, cont, {
+                id: accion.add.id,
+              });
+              set = set.add(tr.doc, [deco]);
+            } else if (accion?.remove) {
+              const quitar = accion.remove;
+              set = set.remove(
+                set.find(undefined, undefined, (spec) => spec.id === quitar.id),
+              );
+            }
+            return set;
+          },
+        },
+        props: {
+          decorations(state) {
+            return subidaKey.getState(state);
+          },
+        },
+      }),
+    ];
+  },
+});
+
+/** Devuelve la posición actual del placeholder con ese id, o null. */
+function posicionPlaceholder(state: EditorState, id: object): number | null {
+  const set = subidaKey.getState(state) as DecorationSet | undefined;
+  const encontrado = set?.find(undefined, undefined, (spec) => spec.id === id);
+  return encontrado && encontrado.length ? encontrado[0].from : null;
+}
+
+/**
+ * Nodo "galería": agrupa varias imágenes subidas juntas. Se serializa como
+ * <div class="galeria" data-galeria="true"> con las imágenes dentro; ese formato
+ * lo detecta hal-site para mostrarlas en fila y abrirlas en un modal navegable.
+ */
+const Galeria = Node.create({
+  name: "galeria",
+  group: "block",
+  content: "image+",
+  draggable: true,
+  selectable: true,
+  parseHTML() {
+    return [{ tag: "div[data-galeria]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { class: "galeria", "data-galeria": "true" }),
+      0,
+    ];
+  },
+});
 
 interface Props {
   value: string;
@@ -256,6 +347,13 @@ export default function RichTextEditor({
 }: Props) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const subiendoRef = useRef(false);
+  const [subiendo, setSubiendo] = useState(false);
+
+  // Barra flotante: se muestra cuando la barra superior sale de vista (scroll en
+  // posts largos) y el editor sigue visible, para mantener las acciones a mano.
+  const barraRef = useRef<HTMLDivElement | null>(null);
+  const contRef = useRef<HTMLDivElement | null>(null);
+  const [flotante, setFlotante] = useState(false);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -263,6 +361,8 @@ export default function RichTextEditor({
       StarterKit.configure({ link: false }),
       Image.configure({ inline: false, allowBase64: false }),
       Link.configure({ openOnClick: false, autolink: true }),
+      SubidaImagen,
+      Galeria,
     ],
     content: value || "",
     editorProps: {
@@ -283,18 +383,77 @@ export default function RichTextEditor({
     }
   }, [value, editor]);
 
+  // Muestra/oculta la barra flotante según el scroll (IntersectionObserver).
+  useEffect(() => {
+    if (!editor || typeof IntersectionObserver === "undefined") return;
+    const barra = barraRef.current;
+    const cont = contRef.current;
+    if (!barra || !cont) return;
+
+    const estado = { barraFuera: false, editorVisible: false };
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.target === barra) {
+            // La barra superior salió por arriba (contenido desplazado hacia arriba).
+            estado.barraFuera = !e.isIntersecting && e.boundingClientRect.top < 0;
+          } else if (e.target === cont) {
+            estado.editorVisible = e.isIntersecting;
+          }
+        }
+        setFlotante(estado.barraFuera && estado.editorVisible);
+      },
+      { threshold: 0 },
+    );
+    io.observe(barra);
+    io.observe(cont);
+    return () => io.disconnect();
+  }, [editor]);
+
   async function onSeleccionImagen(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file || !editor || subiendoRef.current) return;
+    if (files.length === 0 || !editor || subiendoRef.current) return;
     subiendoRef.current = true;
+    setSubiendo(true);
+
+    // Inserta el indicador "Subiendo…" en la posición del cursor.
+    const id = {};
+    const view = editor.view;
+    const pos = view.state.selection.from;
+    const texto =
+      files.length === 1 ? "Subiendo imagen…" : `Subiendo ${files.length} imágenes…`;
+    view.dispatch(view.state.tr.setMeta(subidaKey, { add: { id, pos, texto } }));
+
     try {
-      const url = await onImageUpload(file);
-      editor.chain().focus().setImage({ src: url, alt: file.name }).run();
-    } catch {
-      // El componente padre muestra el error; aquí solo evitamos romper el editor.
+      // Sube las imágenes en el orden seleccionado; las que fallen se omiten.
+      const subidas: { src: string; alt: string }[] = [];
+      for (const file of files) {
+        try {
+          const url = await onImageUpload(file);
+          subidas.push({ src: url, alt: file.name });
+        } catch {
+          // El componente padre muestra el error de cada subida fallida.
+        }
+      }
+
+      const at = posicionPlaceholder(view.state, id);
+      view.dispatch(view.state.tr.setMeta(subidaKey, { remove: { id } }));
+
+      if (at !== null && subidas.length > 0) {
+        // Una sola imagen -> imagen suelta; varias -> galería agrupada.
+        const contenido =
+          subidas.length === 1
+            ? { type: "image", attrs: subidas[0] }
+            : {
+                type: "galeria",
+                content: subidas.map((s) => ({ type: "image", attrs: s })),
+              };
+        editor.chain().focus().insertContentAt(at, contenido).run();
+      }
     } finally {
       subiendoRef.current = false;
+      setSubiendo(false);
     }
   }
 
@@ -303,20 +462,39 @@ export default function RichTextEditor({
   }
 
   return (
-    <div className="rte">
-      <Barra
-        editor={editor}
-        subiendo={subiendoRef.current}
-        onPedirImagen={() => fileRef.current?.click()}
-      />
+    <div className="rte" ref={contRef}>
+      <div ref={barraRef}>
+        <Barra
+          editor={editor}
+          subiendo={subiendo}
+          onPedirImagen={() => fileRef.current?.click()}
+        />
+      </div>
       <EditorContent editor={editor} />
       <input
         ref={fileRef}
         type="file"
         accept=".jpg,.jpeg,.png,.webp,.gif"
+        multiple
         hidden
         onChange={onSeleccionImagen}
       />
+      {flotante &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            className="rte-barra-flotante"
+            role="toolbar"
+            aria-label="Acciones del editor (flotante)"
+          >
+            <Barra
+              editor={editor}
+              subiendo={subiendo}
+              onPedirImagen={() => fileRef.current?.click()}
+            />
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
