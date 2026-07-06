@@ -60,21 +60,21 @@ function gradiente(coverColor: string): string {
 
 function VistaPrevia() {
   const searchParams = useSearchParams();
-  const slug = searchParams.get("slug") ?? "";
+  const uuid = searchParams.get("uuid") ?? searchParams.get("slug") ?? "";
 
   const [datos, setDatos] = useState<PostPreviewData | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!slug) {
+    if (!uuid) {
       setError("No se indicó la noticia a previsualizar.");
       setCargando(false);
       return;
     }
 
     // 1) Datos en vivo escritos por el editor (refleja cambios sin guardar).
-    const clave = PREVIEW_STORAGE_PREFIX + slug;
+    const clave = PREVIEW_STORAGE_PREFIX + uuid;
     const guardado = window.localStorage.getItem(clave);
     if (guardado) {
       window.localStorage.removeItem(clave);
@@ -90,7 +90,7 @@ function VistaPrevia() {
     // 2) Fallback: cargar la versión guardada desde la API (requiere sesión).
     (async () => {
       try {
-        const p = await fetchPost(slug);
+        const p = await fetchPost(uuid);
         setDatos({
           title: p.title,
           excerpt: p.excerpt,
@@ -108,7 +108,7 @@ function VistaPrevia() {
         setCargando(false);
       }
     })();
-  }, [slug]);
+  }, [uuid]);
 
   const cuerpoSeguro = useMemo(
     () => (datos ? DOMPurify.sanitize(datos.cuerpo) : ""),
@@ -153,39 +153,43 @@ function VistaPrevia() {
         </button>
       </div>
 
-      <article className="preview-articulo">
-        {datos.cover ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img className="preview-cover" src={datos.cover} alt="" />
-        ) : (
+      {/* Banner full-width fuera del contenedor del artículo, igual que hal-site */}
+      <section
+        className={`preview-header${datos.cover ? " preview-header--foto" : ""}`}
+        style={datos.cover ? undefined : { background: gradiente(datos.coverColor) }}
+      >
+        {datos.cover && (
           <div
-            className="preview-cover preview-cover--placeholder"
-            style={{ background: gradiente(datos.coverColor) }}
-            aria-hidden="true"
+            className="preview-header-bg"
+            style={{ backgroundImage: `url(${datos.cover})` }}
           />
         )}
-
-        <div className="preview-meta">
-          <span className="preview-categoria">{datos.category}</span>
-          <span className="preview-fecha">{fechaLarga(datos.date)}</span>
+        {datos.cover && <div className="preview-header-overlay" />}
+        <div className="preview-header-content">
+          <div className="preview-meta">
+            <span className="preview-categoria">{datos.category}</span>
+            <span className={`preview-fecha${datos.cover ? " preview-fecha--foto" : ""}`}>{fechaLarga(datos.date)}</span>
+          </div>
+          <h1 className={`preview-titulo${datos.cover ? " preview-titulo--foto" : ""}`}>{datos.title || "(Sin título)"}</h1>
+          {datos.author && <p className={`preview-autor${datos.cover ? " preview-autor--foto" : ""}`}>Por {datos.author}</p>}
         </div>
+      </section>
 
-        <h1 className="preview-titulo">{datos.title || "(Sin título)"}</h1>
-
-        {datos.author && <p className="preview-autor">{datos.author}</p>}
-
+      <article className="preview-articulo">
         {datos.excerpt && <p className="preview-lead">{datos.excerpt}</p>}
 
-        {cuerpoSeguro ? (
-          <div
-            className="preview-body"
-            dangerouslySetInnerHTML={{ __html: cuerpoSeguro }}
-          />
-        ) : (
-          <p className="preview-body preview-body--vacio">
-            Esta noticia aún no tiene contenido.
-          </p>
-        )}
+        <div className="preview-body-wrap">
+          {cuerpoSeguro ? (
+            <div
+              className="preview-body prose-article"
+              dangerouslySetInnerHTML={{ __html: cuerpoSeguro }}
+            />
+          ) : (
+            <p className="preview-body preview-body--vacio">
+              Esta noticia aún no tiene contenido.
+            </p>
+          )}
+        </div>
       </article>
     </>
   );

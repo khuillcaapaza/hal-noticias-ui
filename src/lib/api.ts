@@ -168,12 +168,14 @@ export async function eliminarImagen(uuid: string, id: number): Promise<void> {
 // ── Subida directa a hal-archivos-api (colección "posts") ──────────────
 
 export async function subirImagen(
-  slug: string,
+  uuid: string,
+  subfolder: "cover" | "foto",
   archivo: File,
   onProgress?: (porcentaje: number) => void
 ): Promise<UploadResult> {
   const form = new FormData();
-  form.append("slug", slug);
+  form.append("uuid", uuid);
+  form.append("subfolder", subfolder);
   form.append("archivo", archivo);
   const token = getToken();
   const { data } = await axios.post<UploadResult>(
@@ -195,13 +197,14 @@ export async function subirImagen(
 
 /** Borra el binario físico (usado para revertir subidas huérfanas). */
 export async function eliminarImagenFisica(
-  slug: string,
+  uuid: string,
+  subfolder: "cover" | "foto",
   nombre: string
 ): Promise<void> {
   const token = getToken();
   await axios.delete(`${FILES_API_BASE}/posts/delete`, {
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    data: { slug, nombre },
+    data: { uuid, subfolder, nombre },
   });
 }
 
@@ -212,21 +215,22 @@ export async function eliminarImagenFisica(
  * la URL pública para incrustar.
  */
 export async function subirYRegistrarImagen(
-  slug: string,
   uuid: string,
   archivo: File,
   opciones?: { esPortada?: boolean; onProgress?: (p: number) => void }
 ): Promise<UploadResult> {
-  const res = await subirImagen(slug, archivo, opciones?.onProgress);
+  const esPortada = opciones?.esPortada ?? false;
+  const subfolder: "cover" | "foto" = esPortada ? "cover" : "foto";
+  const res = await subirImagen(uuid, subfolder, archivo, opciones?.onProgress);
   try {
     await registrarImagen(uuid, {
       nombre: res.nombre,
       ext: res.ext,
       tamano: res.tamano,
-      es_portada: opciones?.esPortada ?? false,
+      es_portada: esPortada,
     });
   } catch (err) {
-    await eliminarImagenFisica(slug, res.nombre).catch(() => undefined);
+    await eliminarImagenFisica(uuid, subfolder, res.nombre).catch(() => undefined);
     throw err;
   }
   return res;

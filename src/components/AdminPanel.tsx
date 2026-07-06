@@ -434,7 +434,7 @@ function EditorPost({
   // Sube una imagen incrustada en el cuerpo (requiere post ya creado).
   const subirImagenCuerpo = useCallback(
     async (file: File): Promise<string> => {
-      const res = await subirYRegistrarImagen(slug, uuid, file, {
+      const res = await subirYRegistrarImagen(uuid, file, {
         esPortada: false,
       });
       return res.url;
@@ -458,7 +458,7 @@ function EditorPost({
     };
     try {
       window.localStorage.setItem(
-        PREVIEW_STORAGE_PREFIX + slug,
+        PREVIEW_STORAGE_PREFIX + uuid,
         JSON.stringify(datos)
       );
     } catch {
@@ -466,7 +466,7 @@ function EditorPost({
     }
     const base = process.env.NEXT_PUBLIC_BASE_PATH || "";
     window.open(
-      `${base}/preview/?slug=${encodeURIComponent(slug)}`,
+      `${base}/preview/?uuid=${encodeURIComponent(uuid)}`,
       "_blank",
       "noopener"
     );

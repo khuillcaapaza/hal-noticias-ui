@@ -37,7 +37,7 @@ export default function GestorPortada({
     setProgreso(0);
     setMensaje(null);
     try {
-      await subirYRegistrarImagen(slug, uuid, file, {
+      await subirYRegistrarImagen(uuid, file, {
         esPortada: true,
         onProgress: (p) => setProgreso(p),
       });

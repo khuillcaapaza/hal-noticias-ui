@@ -71,7 +71,6 @@ describe("GestorPortada - sin portada", () => {
 
     await waitFor(() => expect(h.subir).toHaveBeenCalled());
     expect(h.subir).toHaveBeenCalledWith(
-      "mi-post",
       "uuid-1",
       file,
       expect.objectContaining({ esPortada: true })
