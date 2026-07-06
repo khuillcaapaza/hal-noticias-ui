@@ -2,22 +2,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import axios from "axios";
 
-// ── Importación diferida para poder mockear axios antes del import ──────────
+/**
+ * axiosMock  → intercepta `axios.post` y `axios.delete` usados directamente
+ *              por subirImagen y eliminarImagenFisica.
+ * httpMock   → intercepta las llamadas del cliente `http` interno (axios.create())
+ *              usado por registrarImagen (http.post).
+ */
+const httpMock = vi.hoisted(() => ({
+  post: vi.fn(),
+  get: vi.fn(),
+  put: vi.fn(),
+  delete: vi.fn(),
+  interceptors: {
+    request: { use: vi.fn() },
+    response: { use: vi.fn() },
+  },
+}));
+
 const axiosMock = vi.hoisted(() => ({
   post: vi.fn(),
   delete: vi.fn(),
 }));
+
 vi.mock("axios", () => ({
-  default: { ...axiosMock, create: () => ({ interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } }, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }) },
+  default: { ...axiosMock, create: () => httpMock },
   ...axiosMock,
 }));
-
-// Mock del http interno de api.ts (el cliente con interceptors)
-const httpMock = { post: vi.fn(), get: vi.fn(), put: vi.fn(), delete: vi.fn() };
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual };
-});
 
 import {
   subirImagen,
@@ -28,6 +38,8 @@ import {
 beforeEach(() => {
   axiosMock.post.mockReset();
   axiosMock.delete.mockReset();
+  httpMock.post.mockReset();
+  httpMock.delete.mockReset();
   // Simula token almacenado
   window.localStorage.setItem("noticias_token", "test-token");
 });
@@ -112,13 +124,12 @@ describe("subirYRegistrarImagen — sin slug, inferencia de subfolder", () => {
     const file = new File(["x"], "portada.jpg", { type: "image/jpeg" });
     const uploadResult = { ok: true, nombre: "portada-abc.jpg", ext: "jpg", tamano: 1, url: `http://localhost:8002/posts/${uuid}/cover/portada-abc.jpg` };
 
-    axiosMock.post
-      .mockResolvedValueOnce({ data: uploadResult })   // subirImagen
-      .mockResolvedValueOnce({ data: { id: 5 } });     // registrarImagen
+    axiosMock.post.mockResolvedValueOnce({ data: uploadResult });   // subirImagen (axios.post)
+    httpMock.post.mockResolvedValueOnce({ data: { id: 5 } });       // registrarImagen (http.post)
 
     await subirYRegistrarImagen(uuid, file, { esPortada: true });
 
-    // Primera llamada es subirImagen → debe tener subfolder=cover
+    // Primera llamada (axiosMock.post) es subirImagen → debe tener subfolder=cover
     const [, formData] = axiosMock.post.mock.calls[0];
     expect(formData.get("subfolder")).toBe("cover");
   });
@@ -128,9 +139,8 @@ describe("subirYRegistrarImagen — sin slug, inferencia de subfolder", () => {
     const file = new File(["x"], "cuerpo.jpg", { type: "image/jpeg" });
     const uploadResult = { ok: true, nombre: "cuerpo-abc.jpg", ext: "jpg", tamano: 1, url: "" };
 
-    axiosMock.post
-      .mockResolvedValueOnce({ data: uploadResult })
-      .mockResolvedValueOnce({ data: { id: 6 } });
+    axiosMock.post.mockResolvedValueOnce({ data: uploadResult });
+    httpMock.post.mockResolvedValueOnce({ data: { id: 6 } });
 
     await subirYRegistrarImagen(uuid, file);
 
@@ -143,11 +153,9 @@ describe("subirYRegistrarImagen — sin slug, inferencia de subfolder", () => {
     const file = new File(["x"], "img.jpg", { type: "image/jpeg" });
     const uploadResult = { ok: true, nombre: "img-abc.jpg", ext: "jpg", tamano: 1, url: "" };
 
-    axiosMock.post
-      .mockResolvedValueOnce({ data: uploadResult })        // subirImagen OK
-      .mockRejectedValueOnce(new Error("registrar falla")); // registrarImagen falla
-
-    axiosMock.delete.mockResolvedValueOnce({ data: {} }); // eliminarImagenFisica
+    axiosMock.post.mockResolvedValueOnce({ data: uploadResult });          // subirImagen OK
+    httpMock.post.mockRejectedValueOnce(new Error("registrar falla"));     // registrarImagen falla
+    axiosMock.delete.mockResolvedValueOnce({ data: {} });                  // eliminarImagenFisica
 
     await expect(subirYRegistrarImagen(uuid, file, { esPortada: false })).rejects.toThrow("registrar falla");
 
