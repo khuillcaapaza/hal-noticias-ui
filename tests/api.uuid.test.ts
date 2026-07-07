@@ -40,12 +40,12 @@ beforeEach(() => {
   axiosMock.delete.mockReset();
   httpMock.post.mockReset();
   httpMock.delete.mockReset();
-  // Simula token almacenado
-  window.localStorage.setItem("noticias_token", "test-token");
+  // Simula token de sesión (cookie SSO escrita por hal-auth)
+  document.cookie = "hal_token=test-token; path=/";
 });
 
 afterEach(() => {
-  window.localStorage.clear();
+  document.cookie = "hal_token=; path=/; max-age=0";
   vi.clearAllMocks();
 });
 
