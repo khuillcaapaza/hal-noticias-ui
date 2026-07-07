@@ -19,7 +19,6 @@ import ListBarrier from "@/components/ListBarrier";
 import PostGrid from "@/components/PostGrid";
 import PaginationControls from "@/components/PaginationControls";
 import Toggle from "@/components/Toggle";
-import { UsersManagement } from "@/components/UsersManagement";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import {
   actualizarPost,
@@ -42,7 +41,7 @@ interface Props {
   onLogout: () => void;
 }
 
-type PrincipalView = "noticias" | "usuarios" | "settings";
+type PrincipalView = "noticias" | "settings";
 
 const CATEGORIAS = [
   "Institucional",
@@ -68,17 +67,6 @@ function IconoNoticias() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M4 4h13a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V4z" />
       <path d="M8 8h7M8 12h7M8 16h4" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconoUsuarios() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }
@@ -113,7 +101,7 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
     function aplicarDesdeURL() {
       const params = new URLSearchParams(window.location.search);
       const view = params.get("view");
-      if (view === "usuarios" || view === "settings") {
+      if (view === "settings") {
         setPrincipalView(view);
         setUuidEditando(null);
         setVista("lista");
@@ -201,16 +189,6 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
               <IconoNoticias />
               Noticias
             </button>
-            {usuario.rol === "admin" && (
-              <button 
-                type="button" 
-                className={"nav-item" + (principalView === "usuarios" ? " nav-item--activo" : "")}
-                onClick={() => cambiarSeccion("usuarios")}
-              >
-                <IconoUsuarios />
-                Gestión de Usuarios
-              </button>
-            )}
             <button 
               type="button" 
               className={"nav-item" + (principalView === "settings" ? " nav-item--activo" : "")}
@@ -233,8 +211,6 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
                 onCreado={editar}
               />
             )
-          ) : principalView === "usuarios" ? (
-            <UsersManagement />
           ) : (
             <ChangePasswordForm />
           )}
