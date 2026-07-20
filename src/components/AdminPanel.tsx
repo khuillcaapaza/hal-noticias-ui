@@ -19,7 +19,6 @@ import ListBarrier from "@/components/ListBarrier";
 import PostGrid from "@/components/PostGrid";
 import PaginationControls from "@/components/PaginationControls";
 import Toggle from "@/components/Toggle";
-import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import {
   actualizarPost,
   crearPost,
@@ -40,8 +39,6 @@ interface Props {
   usuario: Usuario;
   onLogout: () => void;
 }
-
-type PrincipalView = "noticias" | "settings";
 
 const CATEGORIAS = [
   "Institucional",
@@ -71,14 +68,6 @@ function IconoNoticias() {
   );
 }
 
-function IconoSeguridad() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-  );
-}
-
 function IconoBuscar() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -89,26 +78,16 @@ function IconoBuscar() {
 }
 
 export default function AdminPanel({ usuario, onLogout }: Props) {
-  const [principalView, setPrincipalView] = useState<PrincipalView>("noticias");
   const [vista, setVista] = useState<"lista" | "editor">("lista");
   // uuid en edición; "" indica un post nuevo (aún no creado).
   const [uuidEditando, setUuidEditando] = useState<string | null>(null);
 
-  // Sincroniza el estado con la URL para que la sección del sidebar (?view=)
-  // y el post en edición (?editar=<uuid> o ?nuevo=1) se reflejen en la barra de
+  // Sincroniza el estado con la URL para que el post en edición
+  // (?editar=<uuid> o ?nuevo=1) se refleje en la barra de
   // direcciones y funcionen los botones atrás/adelante del navegador.
   useEffect(() => {
     function aplicarDesdeURL() {
       const params = new URLSearchParams(window.location.search);
-      const view = params.get("view");
-      if (view === "settings") {
-        setPrincipalView(view);
-        setUuidEditando(null);
-        setVista("lista");
-        return;
-      }
-      // Sección de noticias (por defecto).
-      setPrincipalView("noticias");
       const uuid = params.get("editar");
       if (uuid) {
         setUuidEditando(uuid);
@@ -131,11 +110,10 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
     window.history.pushState(null, "", url);
   }
 
-  function cambiarSeccion(view: PrincipalView) {
-    setPrincipalView(view);
+  function irANoticias() {
     setUuidEditando(null);
     setVista("lista");
-    navegar(view === "noticias" ? "" : "view=" + view);
+    navegar("");
   }
 
   function nuevo() {
@@ -183,36 +161,24 @@ export default function AdminPanel({ usuario, onLogout }: Props) {
           <nav>
             <button 
               type="button" 
-              className={"nav-item" + (principalView === "noticias" ? " nav-item--activo" : "")}
-              onClick={() => cambiarSeccion("noticias")}
+              className="nav-item nav-item--activo"
+              onClick={irANoticias}
             >
               <IconoNoticias />
               Noticias
-            </button>
-            <button 
-              type="button" 
-              className={"nav-item" + (principalView === "settings" ? " nav-item--activo" : "")}
-              onClick={() => cambiarSeccion("settings")}
-            >
-              <IconoSeguridad />
-              Cambiar Contraseña
             </button>
           </nav>
         </aside>
 
         <main className="contenido">
-          {principalView === "noticias" ? (
-            vista === "lista" ? (
-              <ListaPosts onNuevo={nuevo} onEditar={editar} />
-            ) : (
-              <EditorPost
-                uuid={uuidEditando ?? ""}
-                onVolver={volverALista}
-                onCreado={editar}
-              />
-            )
+          {vista === "lista" ? (
+            <ListaPosts onNuevo={nuevo} onEditar={editar} />
           ) : (
-            <ChangePasswordForm />
+            <EditorPost
+              uuid={uuidEditando ?? ""}
+              onVolver={volverALista}
+              onCreado={editar}
+            />
           )}
         </main>
       </div>
