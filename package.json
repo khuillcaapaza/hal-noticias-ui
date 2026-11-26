@@ -11,13 +11,14 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@tiptap/extension-image": "^3.0.0",
-    "@tiptap/extension-link": "^3.0.0",
-    "@tiptap/react": "^3.0.0",
-    "@tiptap/starter-kit": "^3.0.0",
-    "axios": "^1.7.9",
-    "dompurify": "^3.4.11",
-    "next": "16.2.9",
+    "@tiptap/extension-image": "^3.35.0",
+    "@tiptap/extension-link": "^3.35.0",
+    "@tiptap/pm": "^3.35.0",
+    "@tiptap/react": "^3.35.0",
+    "@tiptap/starter-kit": "^3.35.0",
+    "axios": "^1.21.1",
+    "dompurify": "^3.5.0",
+    "next": "16.4.6",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -29,7 +30,7 @@
     "@types/react-dom": "^19",
     "@vitest/coverage-istanbul": "^2.1.9",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.4.6",
     "jsdom": "^29.1.1",
     "typescript": "^5",
     "vitest": "^2.1.9"
